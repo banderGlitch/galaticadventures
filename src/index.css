@@ -1,0 +1,796 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =========================================================================
+ *  Asteroid Dodger — Synthwave / sci-fi command-deck theme
+ *  Pure presentation layer. Game logic lives elsewhere; this file should
+ *  never need to know about state.
+ * ========================================================================= */
+
+:root {
+  /* Surfaces */
+  --bg-deep: #02030a;
+  --bg: #04060f;
+  --bg-soft: #0a0f1f;
+
+  /* Foreground tiers */
+  --fg: #e6f7ff;
+  --fg-dim: rgba(230, 247, 255, 0.65);
+  --fg-mute: rgba(230, 247, 255, 0.42);
+
+  /* Neon palette */
+  --neon-cyan: #22d3ee;
+  --neon-magenta: #f0abfc;
+  --neon-violet: #a78bfa;
+  --neon-amber: #fbbf24;
+  --neon-rose: #fb7185;
+
+  /* Semantic accents */
+  --accent-primary: var(--neon-cyan);
+  --accent-secondary: var(--neon-magenta);
+  --accent-coin: var(--neon-amber);
+  --accent-danger: var(--neon-rose);
+
+  /* Panels */
+  --panel-bg: linear-gradient(
+    135deg,
+    rgba(8, 12, 28, 0.78) 0%,
+    rgba(4, 6, 15, 0.86) 100%
+  );
+  --panel-border: rgba(34, 211, 238, 0.36);
+  --rule: rgba(34, 211, 238, 0.25);
+
+  /* Typography */
+  --font-display: "Orbitron", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  /* Glows */
+  --glow-cyan: 0 0 22px rgba(34, 211, 238, 0.55), 0 0 60px rgba(34, 211, 238, 0.18);
+  --glow-magenta: 0 0 22px rgba(240, 171, 252, 0.55), 0 0 60px rgba(240, 171, 252, 0.18);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-feature-settings: "ss01", "cv11";
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  overflow: hidden;
+}
+
+canvas {
+  display: block;
+  touch-action: none;
+}
+
+/* =========================================================================
+ *  Atmosphere: scanlines + vignette
+ * ========================================================================= */
+
+.scanlines::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.03) 0px,
+    rgba(255, 255, 255, 0.03) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+  mix-blend-mode: overlay;
+  z-index: 50;
+}
+
+.vignette::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at center, transparent 45%, rgba(0, 0, 0, 0.65) 100%),
+    linear-gradient(to bottom, rgba(34, 211, 238, 0.05) 0%, transparent 25%);
+  z-index: 49;
+}
+
+/* =========================================================================
+ *  Synthwave horizon grid (used behind overlays only — never the live game)
+ * ========================================================================= */
+
+.synth-horizon {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  opacity: 0.45;
+  z-index: 0;
+}
+.synth-horizon::before {
+  content: "";
+  position: absolute;
+  left: -50%;
+  right: -50%;
+  bottom: -8%;
+  height: 58%;
+  background-image:
+    linear-gradient(rgba(240, 171, 252, 0.55) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 211, 238, 0.55) 1px, transparent 1px);
+  background-size: 56px 56px;
+  transform: perspective(420px) rotateX(58deg);
+  transform-origin: center top;
+  -webkit-mask-image: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.95) 0%,
+    rgba(0, 0, 0, 0.55) 50%,
+    transparent 95%
+  );
+  mask-image: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.95) 0%,
+    rgba(0, 0, 0, 0.55) 50%,
+    transparent 95%
+  );
+  animation: synth-pan 9s linear infinite;
+}
+.synth-horizon::after {
+  /* horizon glow line */
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 50%;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(240, 171, 252, 0.55),
+    rgba(34, 211, 238, 0.55),
+    transparent
+  );
+  filter: blur(0.6px);
+  opacity: 0.8;
+}
+
+@keyframes synth-pan {
+  from {
+    background-position: 0 0, 0 0;
+  }
+  to {
+    background-position: 0 56px, 0 0;
+  }
+}
+
+/* =========================================================================
+ *  Typography utilities
+ * ========================================================================= */
+
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: 0.06em;
+}
+.font-body {
+  font-family: var(--font-body);
+}
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+.title-wordmark {
+  font-family: var(--font-display);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    var(--neon-cyan) 60%,
+    var(--neon-violet) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 26px rgba(34, 211, 238, 0.55);
+  filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.35))
+    drop-shadow(0 0 24px rgba(167, 139, 250, 0.25));
+}
+.title-wordmark[data-tone="magenta"] {
+  background: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    var(--neon-magenta) 60%,
+    var(--neon-rose) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  text-shadow: 0 0 26px rgba(240, 171, 252, 0.55);
+  filter: drop-shadow(0 0 10px rgba(240, 171, 252, 0.35))
+    drop-shadow(0 0 24px rgba(251, 113, 133, 0.25));
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+}
+
+.tagline {
+  font-family: var(--font-body);
+  color: var(--fg-mute);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+/* =========================================================================
+ *  Panels — generic glass card with optional corner brackets
+ * ========================================================================= */
+
+.panel {
+  position: relative;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 18px;
+  padding: 18px 22px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.02) inset,
+    0 0 40px rgba(34, 211, 238, 0.1),
+    0 8px 30px rgba(0, 0, 0, 0.45);
+}
+
+.panel--tight {
+  border-radius: 14px;
+  padding: 8px 16px;
+}
+
+.panel--magenta {
+  border-color: rgba(240, 171, 252, 0.4);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.02) inset,
+    0 0 40px rgba(240, 171, 252, 0.12),
+    0 8px 30px rgba(0, 0, 0, 0.45);
+}
+
+/* Corner brackets — used as 4 children inside a `.panel` */
+.bracket {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--accent-primary);
+  pointer-events: none;
+}
+.bracket--tl {
+  top: -2px;
+  left: -2px;
+  border-right: 0;
+  border-bottom: 0;
+}
+.bracket--tr {
+  top: -2px;
+  right: -2px;
+  border-left: 0;
+  border-bottom: 0;
+}
+.bracket--bl {
+  bottom: -2px;
+  left: -2px;
+  border-right: 0;
+  border-top: 0;
+}
+.bracket--br {
+  bottom: -2px;
+  right: -2px;
+  border-left: 0;
+  border-top: 0;
+}
+.panel--magenta .bracket {
+  border-color: var(--accent-secondary);
+}
+
+/* Hairline divider with center label */
+.rule-diamond {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--fg-mute);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+}
+.rule-diamond::before,
+.rule-diamond::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--rule), transparent);
+}
+
+/* =========================================================================
+ *  Buttons — neon command CTA
+ * ========================================================================= */
+
+.btn-neon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 26px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent-primary);
+  background: linear-gradient(
+    135deg,
+    rgba(34, 211, 238, 0.08),
+    rgba(240, 171, 252, 0.04)
+  );
+  border: 1px solid var(--accent-primary);
+  border-radius: 12px;
+  text-shadow: 0 0 12px rgba(34, 211, 238, 0.6);
+  box-shadow:
+    0 0 0 1px rgba(34, 211, 238, 0.05) inset,
+    0 0 22px rgba(34, 211, 238, 0.25),
+    0 4px 18px rgba(0, 0, 0, 0.4);
+  transition: transform 120ms ease, box-shadow 200ms ease, color 200ms ease;
+  cursor: pointer;
+}
+.btn-neon:hover {
+  box-shadow:
+    0 0 0 1px rgba(34, 211, 238, 0.1) inset,
+    0 0 32px rgba(34, 211, 238, 0.45),
+    0 4px 18px rgba(0, 0, 0, 0.4);
+}
+.btn-neon:active {
+  transform: scale(0.97);
+}
+.btn-neon--magenta {
+  color: var(--accent-secondary);
+  border-color: var(--accent-secondary);
+  text-shadow: 0 0 12px rgba(240, 171, 252, 0.6);
+  box-shadow:
+    0 0 0 1px rgba(240, 171, 252, 0.05) inset,
+    0 0 22px rgba(240, 171, 252, 0.3),
+    0 4px 18px rgba(0, 0, 0, 0.4);
+}
+.btn-neon--ghost {
+  color: var(--fg-dim);
+  border-color: rgba(230, 247, 255, 0.18);
+  background: rgba(230, 247, 255, 0.02);
+  text-shadow: none;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
+}
+.btn-neon--ghost:hover {
+  border-color: rgba(230, 247, 255, 0.32);
+  color: var(--fg);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+    0 4px 22px rgba(0, 0, 0, 0.5);
+}
+
+/* =========================================================================
+ *  Tags — uppercase mission pills with optional status dot
+ * ========================================================================= */
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 11px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.tag-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--accent-primary);
+  box-shadow: 0 0 10px var(--accent-primary);
+  flex-shrink: 0;
+}
+.tag-dot--live {
+  animation: pulse-dot 1.6s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* =========================================================================
+ *  Studio plate — kept as a utility class even though `App.tsx` no longer
+ *  mounts it. Could come back as a non-tab footer somewhere; harmless to keep.
+ * ========================================================================= */
+
+.studio-plate {
+  position: fixed;
+  bottom: 10px;
+  right: 14px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--fg-mute);
+  pointer-events: none;
+  z-index: 30;
+  opacity: 0.7;
+}
+.studio-plate strong {
+  color: var(--fg-dim);
+  font-weight: 600;
+}
+
+/* =========================================================================
+ *  Mobile shell — Stage container, tab bar, tab pages
+ *
+ *  `--tab-bar-h` includes the iOS safe-area inset so the bar never gets
+ *  clipped by the home indicator. The Stage shrinks by exactly the same
+ *  amount so child pages don't need to know about safe areas themselves.
+ * ========================================================================= */
+
+:root {
+  --tab-bar-h: calc(64px + env(safe-area-inset-bottom));
+}
+
+.stage {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none; /* children opt back in */
+}
+.stage--with-bar {
+  bottom: var(--tab-bar-h);
+}
+
+/* ── Tab bar ───────────────────────────────────────────────────────────── */
+
+.tab-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  height: var(--tab-bar-h);
+  padding-bottom: env(safe-area-inset-bottom);
+  background: linear-gradient(
+    180deg,
+    rgba(4, 6, 15, 0.85) 0%,
+    rgba(2, 3, 10, 0.95) 100%
+  );
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-top: 1px solid rgba(34, 211, 238, 0.18);
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.55);
+}
+.tab-bar::before {
+  /* Hairline neon accent across the very top edge */
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(34, 211, 238, 0.55),
+    rgba(240, 171, 252, 0.55),
+    transparent
+  );
+  pointer-events: none;
+}
+
+.tab-bar__inner {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  height: 64px;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 8px;
+}
+
+.tab-btn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 6px 4px 8px;
+  background: transparent;
+  border: 0;
+  color: var(--fg-mute);
+  cursor: pointer;
+  transition: color 180ms ease;
+}
+.tab-btn:hover {
+  color: var(--fg-dim);
+}
+.tab-btn--active {
+  color: var(--accent-primary);
+  filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.45));
+}
+.tab-btn__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.tab-btn__label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+.tab-btn__indicator {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 28px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--accent-primary);
+  box-shadow: 0 0 10px var(--accent-primary), 0 0 20px var(--accent-primary);
+}
+
+/* ── Tab pages (scrollable content area) ───────────────────────────────── */
+
+.tab-page {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: calc(env(safe-area-inset-top) + 28px) 20px 28px 20px;
+  pointer-events: auto; /* re-enable inside .stage */
+}
+.tab-page::-webkit-scrollbar {
+  width: 6px;
+}
+.tab-page::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+}
+.tab-page::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tab-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+}
+.tab-header h2 {
+  margin: 0;
+}
+
+/* ── Stats: run history list + sparkline ───────────────────────────────── */
+
+.run-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.run-row__time {
+  color: var(--fg-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 10px;
+}
+.run-row__score {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+}
+.run-row__badge {
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  padding: 2px 6px;
+  border-radius: 999px;
+  color: var(--neon-amber);
+  border: 1px solid rgba(251, 191, 36, 0.5);
+  background: rgba(251, 191, 36, 0.08);
+}
+.run-row__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
+  color: var(--fg-mute);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+}
+
+/* ── Leaderboard list ──────────────────────────────────────────────────── */
+
+.ranks-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rank-row {
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+.rank-row__pos {
+  color: var(--fg-mute);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-align: center;
+}
+.rank-row__pos--top1 {
+  color: var(--neon-amber);
+  text-shadow: 0 0 10px rgba(251, 191, 36, 0.6);
+  font-weight: 700;
+}
+.rank-row__pos--top2 {
+  color: #cbd5e1;
+  text-shadow: 0 0 10px rgba(203, 213, 225, 0.45);
+  font-weight: 700;
+}
+.rank-row__pos--top3 {
+  color: #fb923c;
+  text-shadow: 0 0 10px rgba(251, 146, 60, 0.45);
+  font-weight: 700;
+}
+.rank-row__name {
+  color: var(--fg-dim);
+  letter-spacing: 0.04em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rank-row__score {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 8px rgba(34, 211, 238, 0.4);
+}
+.rank-row--self {
+  background: linear-gradient(
+    90deg,
+    rgba(240, 171, 252, 0.08),
+    rgba(167, 139, 250, 0.05)
+  );
+  border-color: rgba(240, 171, 252, 0.42);
+  box-shadow: 0 0 0 1px rgba(240, 171, 252, 0.1) inset,
+    0 0 24px rgba(240, 171, 252, 0.08);
+}
+.rank-row--self .rank-row__name {
+  color: var(--fg);
+  font-weight: 600;
+}
+.rank-row--self .rank-row__pos {
+  color: var(--neon-magenta);
+  text-shadow: 0 0 10px rgba(240, 171, 252, 0.6);
+}
+
+/* ── Profile: avatar + segment control ─────────────────────────────────── */
+
+.avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1.5px solid rgba(34, 211, 238, 0.45);
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.25);
+  object-fit: cover;
+  background: rgba(8, 12, 28, 0.7);
+}
+.avatar--initials {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 22px;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 12px rgba(34, 211, 238, 0.45);
+  letter-spacing: 0;
+}
+
+.seg-control {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+}
+.seg-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 8px;
+  background: transparent;
+  border: 0;
+  border-radius: 9px;
+  color: var(--fg-mute);
+  cursor: pointer;
+  transition: background 180ms ease, color 180ms ease;
+}
+.seg-btn:hover {
+  color: var(--fg-dim);
+}
+.seg-btn--active {
+  background: linear-gradient(
+    135deg,
+    rgba(34, 211, 238, 0.12),
+    rgba(167, 139, 250, 0.08)
+  );
+  color: var(--accent-primary);
+  box-shadow:
+    0 0 0 1px rgba(34, 211, 238, 0.35) inset,
+    0 0 22px rgba(34, 211, 238, 0.15);
+}
+.seg-btn__label {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+.seg-btn__sublabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--fg-mute);
+}
+.seg-btn--active .seg-btn__sublabel {
+  color: var(--fg-dim);
+}

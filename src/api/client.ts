@@ -2,7 +2,7 @@
  * Thin fetch wrapper for the Asteroid Dodger backend.
  *
  * Responsibilities:
- *   1. Resolve the API base URL (Vite env var, with localhost fallback).
+ *   1. Resolve the API base URL (`VITE_API_BASE_URL` or hardcoded Railway prod).
  *   2. Inject the `X-Telegram-Init-Data` header on every request so the
  *      server can authenticate the caller via HMAC.
  *   3. Map non-2xx responses into a typed `ApiError` so callers can
@@ -21,11 +21,15 @@ import type {
 } from "./types";
 
 const ENV_BASE = import.meta.env.VITE_API_BASE_URL as string | undefined;
-const FALLBACK_BASE = "http://127.0.0.1:8000";
+/** Production API (Railway). Override with `VITE_API_BASE_URL` for local backends. */
+const DEFAULT_PRODUCTION_BASE =
+  "https://telegrambackend-production-5a1e.up.railway.app";
 
 function getBaseUrl(): string {
   // Strip trailing slash so we can concatenate "/api/..." cleanly.
-  const raw = (ENV_BASE && ENV_BASE.length > 0 ? ENV_BASE : FALLBACK_BASE).trim();
+  const raw = (
+    ENV_BASE && ENV_BASE.length > 0 ? ENV_BASE : DEFAULT_PRODUCTION_BASE
+  ).trim();
   return raw.endsWith("/") ? raw.slice(0, -1) : raw;
 }
 

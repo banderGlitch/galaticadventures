@@ -1,9 +1,9 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
+/** Split React only. Extra splits (three / motion / …) caused Rollup circular chunks and a production TDZ crash: "Cannot access … before initialization". */
 function manualChunks(id: string) {
   if (id.indexOf("node_modules") < 0) return;
-
   if (
     id.indexOf("node_modules/react/") >= 0 ||
     id.indexOf("node_modules/react-dom/") >= 0 ||
@@ -11,20 +11,7 @@ function manualChunks(id: string) {
   ) {
     return "react-vendor";
   }
-  if (id.indexOf("node_modules/framer-motion") >= 0) {
-    return "motion-vendor";
-  }
-  if (
-    id.indexOf("node_modules/three") >= 0 ||
-    id.indexOf("node_modules/@react-three/") >= 0 ||
-    id.indexOf("node_modules/maath") >= 0
-  ) {
-    return "three-vendor";
-  }
-  if (id.indexOf("node_modules/zustand") >= 0) {
-    return "zustand-vendor";
-  }
-  return "vendor";
+  return "deps";
 }
 
 export default defineConfig({
@@ -36,8 +23,8 @@ export default defineConfig({
   build: {
     target: "es2020",
     sourcemap: false,
-    /** Three+r3f minified stays ~650–850 kB (gzip ~170–230 kB); default 500 kB limit is unrealistic here. */
-    chunkSizeWarningLimit: 850,
+    /** `deps` chunk is three+r3f-heavy (~1.1 MB min); warn threshold is cosmetic for CI logs. */
+    chunkSizeWarningLimit: 1300,
     rollupOptions: {
       output: {
         manualChunks,

@@ -24,6 +24,7 @@ interface EventsState {
   clear: () => void;
 }
 
+// console.log("useEvents");
 let nextId = 1;
 
 export const useEvents = create<EventsState>((set) => ({

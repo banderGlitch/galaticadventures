@@ -23,6 +23,8 @@ export default defineConfig({
   build: {
     target: "es2020",
     sourcemap: false,
+    /** Vercel/CI: skip per-chunk gzip in the build — saves memory with large deps bundle. */
+    reportCompressedSize: false,
     /** `deps` chunk is three+r3f-heavy (~1.1 MB min); warn threshold is cosmetic for CI logs. */
     chunkSizeWarningLimit: 1300,
     rollupOptions: {

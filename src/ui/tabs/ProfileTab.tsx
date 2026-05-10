@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useGame } from "../../game/store";
 import { getUser, hapticImpact, hapticSelection } from "../../telegram/sdk";
 import { getPerfTier, setPerfTier, type PerfTier } from "../../lib/perfTier";
 import BracketCorners from "../BracketCorners";
+import { ApiError, api, getApiOrigin, hasTelegramAuth } from "../../api/client";
 
 const BUILD_LABEL = "0.1 // Phase 4.5";
 
@@ -16,6 +17,35 @@ export default function ProfileTab() {
 
   const [tier, setTier] = useState<PerfTier>(getPerfTier());
   const [confirmReset, setConfirmReset] = useState(false);
+
+  /** GET /health only — verifies browser → Railway CORS path (no Telegram header). */
+  const [apiProbe, setApiProbe] = useState<{ loading: boolean; ok: boolean; detail: string }>({
+    loading: true,
+    ok: false,
+    detail: "",
+  });
+
+  const runHealthProbe = () => {
+    setApiProbe((p) => ({ ...p, loading: true }));
+    void api
+      .health()
+      .then((h) => {
+        setApiProbe({ loading: false, ok: true, detail: h.status ?? "ok" });
+      })
+      .catch((e: unknown) => {
+        const msg =
+          e instanceof ApiError
+            ? e.status === 0
+              ? `${e.message} (blocked / offline / wrong CORS)`
+              : `HTTP ${e.status}`
+            : String(e);
+        setApiProbe({ loading: false, ok: false, detail: msg });
+      });
+  };
+
+  useEffect(() => {
+    runHealthProbe();
+  }, []);
 
   const onTierChange = (next: PerfTier) => {
     if (next === tier) return;
@@ -134,11 +164,70 @@ export default function ProfileTab() {
         </button>
       </div>
 
+      {/* API connectivity — verifies Mini App bundle can reach Railway /health */}
+      <div className="panel mt-5 relative border border-white/[0.08]">
+        <BracketCorners />
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="eyebrow">API link · diagnostic</div>
+            <p className="tagline mt-1 mb-0">
+              Calls <span className="text-fg font-mono text-[11px]">GET /health</span> (no Telegram
+              header). If this fails, the game cannot sync scores to the server.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="shrink-0 font-mono text-[10px] uppercase tracking-[0.2em] text-cyan-400/90 hover:text-cyan-300"
+            onClick={() => {
+              hapticSelection();
+              runHealthProbe();
+            }}
+          >
+            Retry
+          </button>
+        </div>
+        <dl className="mt-4 space-y-2 font-mono text-[11px] leading-snug">
+          <div className="flex justify-between gap-2 text-fg/70">
+            <dt className="text-fg/45 uppercase tracking-[0.16em]">Host</dt>
+            <dd className="truncate text-right text-cyan-300/95" title={getApiOrigin()}>
+              {apiHostLabel(getApiOrigin())}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-2 text-fg/70">
+            <dt className="text-fg/45 uppercase tracking-[0.16em]">Reachable</dt>
+            <dd>
+              {apiProbe.loading ? (
+                <span className="text-amber-200/90">checking…</span>
+              ) : apiProbe.ok ? (
+                <span className="text-emerald-300/95">yes · {apiProbe.detail}</span>
+              ) : (
+                <span className="text-rose-300/95">{apiProbe.detail}</span>
+              )}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-2 text-fg/70">
+            <dt className="text-fg/45 uppercase tracking-[0.16em]">initData</dt>
+            <dd className={hasTelegramAuth() ? "text-emerald-300/95" : "text-fg/50"}>
+              {hasTelegramAuth() ? "present (Telegram sync possible)" : "missing (preview / browser)"}
+            </dd>
+          </div>
+        </dl>
+      </div>
+
       <p className="eyebrow mt-7 mb-2 text-center">
         Asteroid Dodger // Build {BUILD_LABEL}
       </p>
     </motion.section>
   );
+}
+
+function apiHostLabel(origin: string): string {
+  try {
+    const o = origin.startsWith("http") ? origin : `https://${origin}`;
+    return new URL(o).host;
+  } catch {
+    return origin.replace(/^https:\/\//, "").split("/")[0];
+  }
 }
 
 /* ───────────────────────────  pieces  ─────────────────────────── */

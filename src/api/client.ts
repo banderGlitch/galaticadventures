@@ -33,6 +33,11 @@ function getBaseUrl(): string {
   return raw.endsWith("/") ? raw.slice(0, -1) : raw;
 }
 
+/** Resolved API origin (HTTPS, no slash) — for diagnostics UI. */
+export function getApiOrigin(): string {
+  return getBaseUrl();
+}
+
 function getInitData(): string | null {
   if (typeof window === "undefined") return null;
   const tg = window.Telegram?.WebApp;
@@ -107,6 +112,26 @@ async function request<T>(
   return (await res.json()) as T;
 }
 
+/** Liveness probe — no Telegram headers; proves CORS + connectivity to Railway. */
+async function fetchHealth(): Promise<{ status: string }> {
+  const url = `${getBaseUrl()}/health`;
+  let res: Response;
+  try {
+    res = await fetch(url, { method: "GET", credentials: "omit" });
+  } catch (err) {
+    throw new ApiError(
+      err instanceof Error ? err.message : "network error",
+      0,
+      null,
+    );
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new ApiError(`HTTP ${res.status}`, res.status, text || null);
+  }
+  return (await res.json()) as { status: string };
+}
+
 export const api = {
   me(): Promise<ApiMeResponse> {
     return request<ApiMeResponse>("GET", "/api/me");
@@ -125,6 +150,10 @@ export const api = {
       "GET",
       `/api/leaderboard?limit=${limit}`,
     );
+  },
+
+  health(): Promise<{ status: string }> {
+    return fetchHealth();
   },
 
   /** True when the API base resolves to localhost — used by the UI to soften

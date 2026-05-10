@@ -27,10 +27,32 @@ const DEFAULT_PRODUCTION_BASE =
 
 function getBaseUrl(): string {
   // Strip trailing slash so we can concatenate "/api/..." cleanly.
-  const raw = (
+  let raw = (
     ENV_BASE && ENV_BASE.length > 0 ? ENV_BASE : DEFAULT_PRODUCTION_BASE
   ).trim();
-  return raw.endsWith("/") ? raw.slice(0, -1) : raw;
+  // Vercel env typos sometimes include wrapping quotes — breaks fetch() on WebKit.
+  if (
+    (raw.startsWith('"') && raw.endsWith('"')) ||
+    (raw.startsWith("'") && raw.endsWith("'"))
+  ) {
+    raw = raw.slice(1, -1).trim();
+  }
+  let base = raw.endsWith("/") ? raw.slice(0, -1) : raw;
+
+  if (!/^https?:\/\//i.test(base)) {
+    base = `https://${base.replace(/^\/+/, "")}`;
+  }
+
+  try {
+    const u = new URL(base);
+    if (u.protocol !== "http:" && u.protocol !== "https:") {
+      return DEFAULT_PRODUCTION_BASE.replace(/\/+$/, "");
+    }
+    // Use origin only so env can't accidentally point at a path.
+    return u.origin;
+  } catch {
+    return DEFAULT_PRODUCTION_BASE.replace(/\/+$/, "");
+  }
 }
 
 /** Resolved API origin (HTTPS, no slash) — for diagnostics UI. */
@@ -129,7 +151,22 @@ async function fetchHealth(): Promise<{ status: string }> {
     const text = await res.text().catch(() => "");
     throw new ApiError(`HTTP ${res.status}`, res.status, text || null);
   }
-  return (await res.json()) as { status: string };
+
+  const text = await res.text();
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return { status: "ok" };
+  }
+  try {
+    const data = JSON.parse(trimmed) as { status?: string };
+    return { status: typeof data.status === "string" ? data.status : "ok" };
+  } catch {
+    throw new ApiError(
+      `Not JSON from /health (${trimmed.slice(0, 100)})`,
+      res.status,
+      trimmed,
+    );
+  }
 }
 
 export const api = {
